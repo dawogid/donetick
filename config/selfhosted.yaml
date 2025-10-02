@@ -1,6 +1,6 @@
 name: "selfhosted"
 is_done_tick_dot_com: false
-is_user_creation_disabled: true
+is_user_creation_disabled: false
 telegram:
   token: ""
 pushover:
@@ -40,18 +40,18 @@ scheduler_jobs:
   overdue_job: 3h
   pre_due_job: 3h
 email:
-  host: 
-  port: 
-  key: 
-  email:  
-  appHost:  
+  host:
+  port:
+  key:
+  email:
+  appHost:
 oauth2:
-  client_id: 
-  client_secret: 
-  auth_url: 
-  token_url: 
-  user_info_url: 
-  redirect_url: 
+  client_id:
+  client_secret:
+  auth_url:
+  token_url:
+  user_info_url:
+  redirect_url:
   name:
 # Real-time configuration
 realtime:
