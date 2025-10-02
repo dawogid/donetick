@@ -275,8 +275,17 @@ func configEnvironmentOverrides(Config *Config) {
 	if os.Getenv("DONETICK_PUSHOVER_TOKEN") != "" {
 		Config.Pushover.Token = os.Getenv("DONETICK_PUSHOVER_TOKEN")
 	}
-	if os.Getenv("DONETICK_DISABLE_SIGNUP") == "true" {
-		Config.IsUserCreationDisabled = true
+
+	// Signup disable overrides (support multiple env var names for backwards compatibility)
+	for _, key := range []string{"DONETICK_DISABLE_SIGNUP", "DT_DISABLE_SIGNUP", "DT_IS_USER_CREATION_DISABLED"} {
+		if val, ok := os.LookupEnv(key); ok {
+			v := strings.ToLower(strings.TrimSpace(val))
+			if v == "true" || v == "1" || v == "yes" { // enable disable-signup flag
+				Config.IsUserCreationDisabled = true
+			} else if v == "false" || v == "0" || v == "no" { // explicitly allow signups
+				Config.IsUserCreationDisabled = false
+			}
+		}
 	}
 
 	// Logging environment overrides
