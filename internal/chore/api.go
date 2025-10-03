@@ -75,7 +75,7 @@ func (h *API) CreateChore(c *gin.Context) {
 	if choreRequest.DueDate != "" {
 		parsedDate, err := time.Parse(time.RFC3339, choreRequest.DueDate)
 		if err != nil {
-			parsedDateSimple, errSimple := time.Parse("02/01/2006", choreRequest.DueDate)
+			parsedDateSimple, errSimple := time.Parse(utils.DateLayout, choreRequest.DueDate)
 			if errSimple != nil {
 				c.JSON(400, gin.H{"error": "Invalid due date format. Use RFC3339 or DD/MM/YYYY"})
 				return
@@ -196,7 +196,7 @@ func (h *API) UpdateChore(c *gin.Context) {
 
 		parsedDate, err := time.Parse(time.RFC3339, choreRequest.DueDate)
 		if err != nil {
-			parsedDateSimple, errSimple := time.Parse("02/01/2006", choreRequest.DueDate)
+			parsedDateSimple, errSimple := time.Parse(utils.DateLayout, choreRequest.DueDate)
 			if errSimple != nil {
 				c.JSON(400, gin.H{"error": "Invalid due date format. Use RFC3339 or DD/MM/YYYY"})
 				return
