@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"donetick.com/core/config"
 	"github.com/aws/aws-sdk-go/aws"
@@ -26,7 +27,7 @@ const (
 )
 
 func NewS3Storage(config *config.Config) (*S3Storage, error) {
-	sess, err := session.NewSession(&aws.Config{
+	awsCfg := &aws.Config{
 		Region:   aws.String(config.Storage.Region),
 		Endpoint: aws.String(config.Storage.Endpoint),
 		Credentials: credentials.NewStaticCredentials(
@@ -34,7 +35,12 @@ func NewS3Storage(config *config.Config) (*S3Storage, error) {
 			config.Storage.SecretKey,
 			"",
 		),
-	})
+	}
+	// Enable path-style for common S3-compatible providers that require it (e.g., Cloudflare R2)
+	if config.Storage.Endpoint != "" && (strings.Contains(config.Storage.Endpoint, "r2.cloudflarestorage.com") || strings.Contains(strings.ToLower(config.Storage.Endpoint), "minio")) {
+		awsCfg.S3ForcePathStyle = aws.Bool(true)
+	}
+	sess, err := session.NewSession(awsCfg)
 	if err != nil {
 		return nil, err
 	}

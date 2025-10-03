@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"strconv"
 
 	"go.uber.org/zap/zapcore"
 
@@ -298,6 +299,21 @@ func configEnvironmentOverrides(Config *Config) {
 	if os.Getenv("DONETICK_LOG_DEVELOPMENT") == "true" {
 		Config.Logging.Development = true
 	}
+
+	// Storage overrides (DT_ prefix already handled by viper for nested fields, this adds DONETICK_ legacy + normalization + ints)
+	setIf := func(env string, set func(string)) {
+		if v, ok := os.LookupEnv(env); ok && v != "" { set(v) }
+	}
+	setIf("DT_STORAGE_STORAGE_TYPE", func(v string){ Config.Storage.StorageType = v })
+	setIf("DT_STORAGE_BUCKET_NAME", func(v string){ Config.Storage.BucketName = v })
+	setIf("DT_STORAGE_REGION", func(v string){ Config.Storage.Region = v })
+	setIf("DT_STORAGE_BASE_PATH", func(v string){ Config.Storage.BasePath = strings.TrimSuffix(v, "/") })
+	setIf("DT_STORAGE_ACCESS_KEY", func(v string){ Config.Storage.AccessKey = v })
+	setIf("DT_STORAGE_SECRET_KEY", func(v string){ Config.Storage.SecretKey = v })
+	setIf("DT_STORAGE_ENDPOINT", func(v string){ Config.Storage.Endpoint = v })
+	setIf("DT_STORAGE_PUBLIC_HOST", func(v string){ Config.Storage.PublicHost = v })
+	if v, ok := os.LookupEnv("DT_STORAGE_MAX_USER_STORAGE"); ok && v != "" { if i, err := strconv.Atoi(v); err == nil { Config.Storage.MaxUserStorage = i } }
+	if v, ok := os.LookupEnv("DT_STORAGE_MAX_FILE_SIZE"); ok && v != "" { if i, err := strconv.ParseInt(v, 10, 64); err == nil { Config.Storage.MaxFileSize = i } }
 }
 func LoadConfig() *Config {
 	// set the config name based on the environment:
