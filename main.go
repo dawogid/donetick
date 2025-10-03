@@ -67,6 +67,9 @@ func main() {
 	)
 
 	app := fx.New(
+		// Extend start timeout to allow slow cold-start migrations on free Postgres tiers
+		fx.StartTimeout(60*time.Second),
+		fx.StopTimeout(15*time.Second),
 		fx.Supply(cfg),
 		fx.Supply(logging.DefaultLogger().Desugar()),
 
