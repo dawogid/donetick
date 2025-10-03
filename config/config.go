@@ -356,6 +356,15 @@ func LoadConfig() *Config {
 
 	configEnvironmentOverrides(&config)
 
+	// Enforce immutable storage defaults for selfhosted deployments
+	if config.Name == "selfhosted" {
+		config.Storage.StorageType = "remote"
+		config.Storage.Region = "auto"       // Cloudflare R2 recommended region value
+		config.Storage.BasePath = "assets"    // All objects go under this prefix
+		config.Storage.MaxUserStorage = 1073741824 // 1 GiB per user default limit
+		config.Storage.MaxFileSize = 10485760      // 10 MB max single file size
+	}
+
 	// Validate JWT secret strength
 	if config.Name != "local" {
 		validateJWTSecret(config.Jwt.Secret)
