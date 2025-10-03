@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"donetick.com/core/internal/utils"
 )
 
 // MessageValidator handles validation of WebSocket messages
@@ -115,7 +117,9 @@ func (mv *MessageValidator) validateMessageStructure(message *WebSocketMessage) 
 	// Validate timestamp format if provided
 	if message.Timestamp != "" {
 		if _, err := time.Parse(time.RFC3339, message.Timestamp); err != nil {
-			errors = append(errors, "invalid timestamp format, use RFC3339")
+			if _, err2 := utils.ParseFlexibleDateTime(message.Timestamp); err2 != nil {
+				errors = append(errors, "invalid timestamp format, use RFC3339 or DD/MM/YYYY")
+			}
 		}
 	}
 

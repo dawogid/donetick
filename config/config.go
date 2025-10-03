@@ -97,6 +97,7 @@ type DatabaseConfig struct {
 	Name      string `mapstructure:"name" yaml:"name"`
 	Migration bool   `mapstructure:"migration" yaml:"migration" default:"true"`
 	LogLevel  int    `mapstructure:"logger" yaml:"logger"`
+	SSLMode   string `mapstructure:"sslmode" yaml:"sslmode"`
 }
 
 type JwtConfig struct {
@@ -304,6 +305,16 @@ func configEnvironmentOverrides(Config *Config) {
 	setIf := func(env string, set func(string)) {
 		if v, ok := os.LookupEnv(env); ok && v != "" { set(v) }
 	}
+
+	// Database overrides (explicit because we may run without full YAML edits in addon)
+	setIf("DT_DATABASE_TYPE", func(v string){ Config.Database.Type = v })
+	setIf("DT_DATABASE_HOST", func(v string){ Config.Database.Host = v })
+	setIf("DT_DATABASE_USER", func(v string){ Config.Database.User = v })
+	setIf("DT_DATABASE_PASSWORD", func(v string){ Config.Database.Password = v })
+	setIf("DT_DATABASE_NAME", func(v string){ Config.Database.Name = v })
+	setIf("DT_DATABASE_SSLMODE", func(v string){ Config.Database.SSLMode = v })
+	if v, ok := os.LookupEnv("DT_DATABASE_PORT"); ok && v != "" { if p, err := strconv.Atoi(v); err == nil { Config.Database.Port = p } }
+	if v, ok := os.LookupEnv("DT_DATABASE_MIGRATION"); ok { if strings.ToLower(v) == "false" { Config.Database.Migration = false } else if strings.ToLower(v) == "true" { Config.Database.Migration = true } }
 	setIf("DT_STORAGE_STORAGE_TYPE", func(v string){ Config.Storage.StorageType = v })
 	setIf("DT_STORAGE_BUCKET_NAME", func(v string){ Config.Storage.BucketName = v })
 	setIf("DT_STORAGE_REGION", func(v string){ Config.Storage.Region = v })

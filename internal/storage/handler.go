@@ -27,7 +27,7 @@ import (
 // Handler handles file storage-related routes
 type Handler struct {
 	storage     Storage
-	signer      *URLSignerS3
+	signer      *URLSignerS3 // may be nil when using local storage
 	storageRepo *storageRepo.StorageRepository
 	choreRepo   *chRepo.ChoreRepository
 	circleRepo  *cRepo.CircleRepository
@@ -35,7 +35,7 @@ type Handler struct {
 }
 
 // NewHandler creates a new Handler
-func NewHandler(storage *S3Storage, choreRepo *chRepo.ChoreRepository, circleRepo *cRepo.CircleRepository,
+func NewHandler(storage Storage, choreRepo *chRepo.ChoreRepository, circleRepo *cRepo.CircleRepository,
 	repo *storageRepo.StorageRepository, signer *URLSignerS3, cfg *config.Config) *Handler {
 	return &Handler{storage: storage, circleRepo: circleRepo,
 		choreRepo:   choreRepo,
@@ -65,7 +65,7 @@ func (h *Handler) AssetHandler(c *gin.Context) {
 
 	sig := c.Query("sig")
 
-	if !h.signer.IsValid(parsed.Path[1:], sig) {
+	if h.signer != nil && !h.signer.IsValid(parsed.Path[1:], sig) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "invalid or expired signature for url: " + parsed.Path[1:]})
 		return
 	}

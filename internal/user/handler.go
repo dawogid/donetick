@@ -1384,7 +1384,7 @@ func (h *Handler) createChildUser(c *gin.Context) {
 		Username:    createdUser.Username,
 		DisplayName: createdUser.DisplayName,
 		UserType:    "child",
-		CreatedAt:   createdUser.CreatedAt.Format(time.RFC3339),
+		CreatedAt:   createdUser.CreatedAt.UTC().Format("02/01/2006 15:04:05"),
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"res": response})
@@ -1517,7 +1517,7 @@ func (h *Handler) getChildUsers(c *gin.Context) {
 			Username:    child.Username,
 			DisplayName: child.DisplayName,
 			UserType:    "child",
-			CreatedAt:   child.CreatedAt.Format(time.RFC3339),
+			CreatedAt:   child.CreatedAt.UTC().Format("02/01/2006 15:04:05"),
 		})
 	}
 

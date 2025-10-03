@@ -9,6 +9,7 @@ import (
 	"time"
 
 	chModel "donetick.com/core/internal/chore/model"
+	"donetick.com/core/internal/utils"
 	"donetick.com/core/logging"
 )
 
@@ -32,14 +33,18 @@ func scheduleNextDueDate(ctx context.Context, chore *chModel.Chore, completedDat
 		t, err := time.Parse(time.RFC3339, chore.FrequencyMetadataV2.Time)
 		if err != nil {
 			log := logging.FromContext(ctx)
-			log.Error("error parsing time in frequency metadata", "error", err, "chore_id", chore.ID)
-			log.Warn("falling back to current time for next due date calculation")
-
-			// fallback to use the next due date time if available:
-			if chore.NextDueDate != nil {
-				t = chore.NextDueDate.UTC()
+			// Attempt flexible parsing (supports DD/MM/YYYY and DD/MM/YYYY HH:MM:SS)
+			if flex, flexErr := utils.ParseFlexibleDateTime(chore.FrequencyMetadataV2.Time); flexErr == nil {
+				t = flex
 			} else {
-				t = time.Now().UTC()
+				log.Error("error parsing time in frequency metadata", "error", err, "chore_id", chore.ID)
+				log.Warn("falling back to current time for next due date calculation")
+				// fallback to use the next due date time if available:
+				if chore.NextDueDate != nil {
+					t = chore.NextDueDate.UTC()
+				} else {
+					t = time.Now().UTC()
+				}
 			}
 
 		}
