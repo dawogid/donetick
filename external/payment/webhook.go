@@ -79,7 +79,8 @@ func (h *Webhook) StripeWebhook(c *gin.Context) {
 		return
 	}
 	// create a file and write the event to it:
-	timestamp := time.Now().Format("2006-01-02_15:04:05")
+	// Updated timestamp format to DD/MM/YYYY order (filesystem safe with dashes)
+	timestamp := time.Now().Format("02-01-2006_15-04-05")
 	f, err := os.Create(fmt.Sprintf("w-%s-%s.json", timestamp, event.Type))
 	if err != nil {
 		logger.Errorw("payment.webhook.Webhook failed to create file", "err", err)

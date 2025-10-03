@@ -231,16 +231,13 @@ func (h *Handler) createChore(c *gin.Context) {
 	var dueDate *time.Time
 
 	if choreReq.DueDate != "" {
-		rawDueDate, err := time.Parse(time.RFC3339, choreReq.DueDate)
-		rawDueDate = rawDueDate.UTC()
-		dueDate = &rawDueDate
+		parsed, err := utils.ParseFlexibleDateTime(choreReq.DueDate)
 		if err != nil {
-			c.JSON(400, gin.H{
-				"error": "Invalid date",
-			})
+			c.JSON(400, gin.H{"error": "Invalid date format. Use DD/MM/YYYY or RFC3339"})
 			return
 		}
-
+		p := parsed.UTC()
+		dueDate = &p
 	}
 
 	createdChore := &chModel.Chore{
@@ -432,16 +429,13 @@ func (h *Handler) editChore(c *gin.Context) {
 	var dueDate *time.Time
 
 	if choreReq.DueDate != "" {
-		rawDueDate, err := time.Parse(time.RFC3339, choreReq.DueDate)
-		rawDueDate = rawDueDate.UTC()
-		dueDate = &rawDueDate
+		parsed, err := utils.ParseFlexibleDateTime(choreReq.DueDate)
 		if err != nil {
-			c.JSON(400, gin.H{
-				"error": "Invalid date",
-			})
+			c.JSON(400, gin.H{"error": "Invalid date format. Use DD/MM/YYYY or RFC3339"})
 			return
 		}
-
+		p := parsed.UTC()
+		dueDate = &p
 	}
 
 	//  validate assignedTo part of the assignees:
@@ -1337,15 +1331,13 @@ func (h *Handler) updateDueDate(c *gin.Context) {
 
 	// Handle due date: if nil, empty string, or "null", set to nil
 	if dueDateReq.DueDate != nil && *dueDateReq.DueDate != "" && *dueDateReq.DueDate != "null" {
-		rawDueDate, err := time.Parse(time.RFC3339, *dueDateReq.DueDate)
+		parsed, err := utils.ParseFlexibleDateTime(*dueDateReq.DueDate)
 		if err != nil {
-			c.JSON(400, gin.H{
-				"error": "Invalid date",
-			})
+			c.JSON(400, gin.H{"error": "Invalid date format. Use DD/MM/YYYY or RFC3339"})
 			return
 		}
-		utcDueDate := rawDueDate.UTC()
-		dueDate = &utcDueDate
+		p := parsed.UTC()
+		dueDate = &p
 	}
 	chore, err := h.choreRepo.GetChore(c, id, currentUser.ID)
 	if err != nil {
@@ -1531,13 +1523,12 @@ func (h *Handler) completeChore(c *gin.Context) {
 		completedDate = time.Now().UTC()
 	} else {
 		var err error
-		completedDate, err = time.Parse(time.RFC3339, rawCompletedDate)
+		parsed, err := utils.ParseFlexibleDateTime(rawCompletedDate)
 		if err != nil {
-			c.JSON(400, gin.H{
-				"error": "Invalid date",
-			})
+			c.JSON(400, gin.H{"error": "Invalid date format. Use DD/MM/YYYY or RFC3339"})
 			return
 		}
+		completedDate = parsed.UTC()
 	}
 
 	var additionalNotes *string

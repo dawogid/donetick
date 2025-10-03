@@ -142,12 +142,31 @@ func main() {
 
 		fx.Provide(frontend.NewHandler),
 
-		// storage :
-		// is storage local or remote?
-		// fx.Provide(storage.NewLocalStorage),
-		// fx.Provide(storage.NewURLSignerLocal),
-		fx.Provide(storage.NewS3Storage),
-		fx.Provide(storage.NewURLSignerS3),
+		// storage selection (remote S3-compatible vs local)
+		fx.Provide(func(cfg *config.Config) (*storage.S3Storage, *storage.LocalStorage, error) {
+			// If remote requested attempt remote, else fall back to local
+			if strings.ToLower(cfg.Storage.StorageType) == "remote" {
+				s3Store, err := storage.NewS3Storage(cfg)
+				if err == nil {
+					return s3Store, nil, nil
+				}
+				// log error and fallback
+				fmt.Printf("--Storage remote init failed: %v falling back to local\n", err)
+			}
+			// ensure base path default for local
+			if cfg.Storage.BasePath == "" { cfg.Storage.BasePath = "assets" }
+			return nil, storage.NewLocalStorage(cfg), nil
+		}),
+		// Provide a unified storage implementation for handlers expecting *S3Storage
+		fx.Provide(func(s3 *storage.S3Storage, local *storage.LocalStorage) storage.Storage {
+			if s3 != nil { return s3 }
+			return local
+		}),
+		// URL signer selection
+		fx.Provide(func(s3 *storage.S3Storage, cfg *config.Config) *storage.URLSignerS3 {
+			if s3 == nil { return nil }
+			return storage.NewURLSignerS3(s3, cfg)
+		}),
 
 		fx.Provide(storage.NewHandler),
 		fx.Provide(storageRepo.NewStorageRepository),
