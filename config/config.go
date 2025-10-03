@@ -98,6 +98,8 @@ type DatabaseConfig struct {
 	Migration bool   `mapstructure:"migration" yaml:"migration" default:"true"`
 	LogLevel  int    `mapstructure:"logger" yaml:"logger"`
 	SSLMode   string `mapstructure:"sslmode" yaml:"sslmode"`
+	// Maximum time allowed for executing startup DB migrations (schema + custom scripts)
+	MigrationTimeout time.Duration `mapstructure:"migration_timeout" yaml:"migration_timeout" default:"3m"`
 }
 
 type JwtConfig struct {
@@ -313,6 +315,12 @@ func configEnvironmentOverrides(Config *Config) {
 	setIf("DT_DATABASE_PASSWORD", func(v string){ Config.Database.Password = v })
 	setIf("DT_DATABASE_NAME", func(v string){ Config.Database.Name = v })
 	setIf("DT_DATABASE_SSLMODE", func(v string){ Config.Database.SSLMode = v })
+	// Allow overriding migration timeout (accept Go duration string e.g. "90s", "2m")
+	if v, ok := os.LookupEnv("DT_DATABASE_MIGRATION_TIMEOUT"); ok && v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			Config.Database.MigrationTimeout = d
+		}
+	}
 	if v, ok := os.LookupEnv("DT_DATABASE_PORT"); ok && v != "" { if p, err := strconv.Atoi(v); err == nil { Config.Database.Port = p } }
 	if v, ok := os.LookupEnv("DT_DATABASE_MIGRATION"); ok { if strings.ToLower(v) == "false" { Config.Database.Migration = false } else if strings.ToLower(v) == "true" { Config.Database.Migration = true } }
 	setIf("DT_STORAGE_STORAGE_TYPE", func(v string){ Config.Storage.StorageType = v })
