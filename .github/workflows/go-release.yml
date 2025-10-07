@@ -2,11 +2,11 @@ name: Go Release
 
 permissions:
   contents: write
-  
+
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,14 +17,14 @@ jobs:
       - name: Checkout Frontend
         uses: actions/checkout@v4
         with:
-          repository: 'donetick/frontend'
+          repository: "donetick/frontend"
           token: ${{ secrets.GITHUB_TOKEN }}
-          path: 'frontend-code'
-      # build frontend 
+          path: "frontend-code"
+      # build frontend
       - name: Install Node.js
         uses: actions/setup-node@v2
         with:
-          node-version: '23'
+          node-version: "23"
       - name: Install Dependencies
         run: |
           cd frontend-code
@@ -44,7 +44,7 @@ jobs:
         with:
           go-version: 1.22
           check-latest: true
-          cache: true 
+          cache: true
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
@@ -57,7 +57,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # I added QEMU Emulation support for non-native architectures and also Buildx to enables multi-architecture. not sure if there is better/faster way to do this
-      - name: Set up QEMU 
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx

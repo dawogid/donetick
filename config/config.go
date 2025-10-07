@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"strconv"
 
 	"go.uber.org/zap/zapcore"
 
@@ -96,6 +97,9 @@ type DatabaseConfig struct {
 	Name      string `mapstructure:"name" yaml:"name"`
 	Migration bool   `mapstructure:"migration" yaml:"migration" default:"true"`
 	LogLevel  int    `mapstructure:"logger" yaml:"logger"`
+	SSLMode   string `mapstructure:"sslmode" yaml:"sslmode"`
+	// Maximum time allowed for executing startup DB migrations (schema + custom scripts)
+	MigrationTimeout time.Duration `mapstructure:"migration_timeout" yaml:"migration_timeout" default:"3m"`
 }
 
 type JwtConfig struct {
@@ -275,8 +279,17 @@ func configEnvironmentOverrides(Config *Config) {
 	if os.Getenv("DONETICK_PUSHOVER_TOKEN") != "" {
 		Config.Pushover.Token = os.Getenv("DONETICK_PUSHOVER_TOKEN")
 	}
-	if os.Getenv("DONETICK_DISABLE_SIGNUP") == "true" {
-		Config.IsUserCreationDisabled = true
+
+	// Signup disable overrides (support multiple env var names for backwards compatibility)
+	for _, key := range []string{"DONETICK_DISABLE_SIGNUP", "DT_DISABLE_SIGNUP", "DT_IS_USER_CREATION_DISABLED"} {
+		if val, ok := os.LookupEnv(key); ok {
+			v := strings.ToLower(strings.TrimSpace(val))
+			if v == "true" || v == "1" || v == "yes" { // enable disable-signup flag
+				Config.IsUserCreationDisabled = true
+			} else if v == "false" || v == "0" || v == "no" { // explicitly allow signups
+				Config.IsUserCreationDisabled = false
+			}
+		}
 	}
 
 	// Logging environment overrides
@@ -289,6 +302,25 @@ func configEnvironmentOverrides(Config *Config) {
 	if os.Getenv("DONETICK_LOG_DEVELOPMENT") == "true" {
 		Config.Logging.Development = true
 	}
+	
+	// Database overrides (explicit because we may run without full YAML edits in addon)
+	setIf := func(env string, set func(string)) {
+		if v, ok := os.LookupEnv(env); ok && v != "" { set(v) }
+	}
+	setIf("DT_DATABASE_TYPE", func(v string){ Config.Database.Type = v })
+	setIf("DT_DATABASE_HOST", func(v string){ Config.Database.Host = v })
+	setIf("DT_DATABASE_USER", func(v string){ Config.Database.User = v })
+	setIf("DT_DATABASE_PASSWORD", func(v string){ Config.Database.Password = v })
+	setIf("DT_DATABASE_NAME", func(v string){ Config.Database.Name = v })
+	setIf("DT_DATABASE_SSLMODE", func(v string){ Config.Database.SSLMode = v })
+	// Allow overriding migration timeout (accept Go duration string e.g. "90s", "2m")
+	if v, ok := os.LookupEnv("DT_DATABASE_MIGRATION_TIMEOUT"); ok && v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			Config.Database.MigrationTimeout = d
+		}
+	}
+	if v, ok := os.LookupEnv("DT_DATABASE_PORT"); ok && v != "" { if p, err := strconv.Atoi(v); err == nil { Config.Database.Port = p } }
+	if v, ok := os.LookupEnv("DT_DATABASE_MIGRATION"); ok { if strings.ToLower(v) == "false" { Config.Database.Migration = false } else if strings.ToLower(v) == "true" { Config.Database.Migration = true } }
 }
 func LoadConfig() *Config {
 	// set the config name based on the environment:

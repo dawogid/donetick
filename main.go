@@ -67,6 +67,9 @@ func main() {
 	)
 
 	app := fx.New(
+		// Further extend start timeout: large custom migrations + cold Postgres (e.g. Supabase paused instance)
+		fx.StartTimeout(3*time.Minute),
+		fx.StopTimeout(15*time.Second),
 		fx.Supply(cfg),
 		fx.Supply(logging.DefaultLogger().Desugar()),
 
@@ -237,28 +240,63 @@ func newServer(lc fx.Lifecycle, cfg *config.Config, db *gorm.DB, notifier *notif
 
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
+			startTotal := time.Now()
 			if cfg.Database.Migration {
-				database.Migration(db)
-				migrations.Run(context.Background(), db)
-				err := database.MigrationScripts(db, cfg)
-				if err != nil {
-					panic(err)
+				// Use a bounded context for migrations so we can surface timeout cause before Fx global timeout
+				mTimeout := cfg.Database.MigrationTimeout
+				if mTimeout <= 0 { mTimeout = 3 * time.Minute }
+				mCtx, cancel := context.WithTimeout(context.Background(), mTimeout)
+				defer cancel()
+
+				log.Printf("[startup] Running database migrations (timeout=%s) ...", mTimeout)
+				phaseStart := time.Now()
+				if err := database.Migration(db); err != nil {
+					return fmt.Errorf("auto-migrate failed after %s: %w", time.Since(phaseStart), err)
 				}
+				log.Printf("[startup] GORM AutoMigrate completed in %s", time.Since(phaseStart))
+
+				phaseStart = time.Now()
+				if err := migrations.Run(mCtx, db); err != nil {
+					return fmt.Errorf("custom migrations failed after %s: %w", time.Since(phaseStart), err)
+				}
+				log.Printf("[startup] Custom Go migrations completed in %s", time.Since(phaseStart))
+
+				phaseStart = time.Now()
+				if err := database.MigrationScripts(db, cfg); err != nil {
+					return fmt.Errorf("SQL migrations failed after %s: %w", time.Since(phaseStart), err)
+				}
+				log.Printf("[startup] Embedded SQL migrations completed in %s", time.Since(phaseStart))
+
+				// Warm-up simple ping to ensure underlying connection pool is healthy
+				sqlDB, err := db.DB()
+				if err == nil {
+					pingStart := time.Now()
+					pingErr := sqlDB.PingContext(mCtx)
+					if pingErr != nil {
+						return fmt.Errorf("post-migration ping failed after %s: %w", time.Since(pingStart), pingErr)
+					}
+					log.Printf("[startup] DB ping OK (%s)", time.Since(pingStart))
+				}
+			} else {
+				log.Printf("[startup] Database migrations disabled via configuration")
 			}
+
 			notifier.Start(context.Background())
 			eventProducer.Start(context.Background())
 			mfaCleanup.Start(context.Background())
 
-			// Start real-time service
+			// Start real-time service (non-blocking issues are logged, not fatal)
 			if err := rts.Start(ctx); err != nil {
 				log.Printf("Failed to start real-time service: %v", err)
 			}
 
+			// Launch HTTP server
 			go func() {
 				if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 					log.Fatalf("listen: %s\n", err)
 				}
 			}()
+			log.Printf("[startup] Server listening on %s (total startup %s)", srv.Addr, time.Since(startTotal))
 			return nil
 		},
 		OnStop: func(ctx context.Context) error {
